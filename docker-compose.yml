@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: marangone_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus_dev
+      POSTGRES_DB: nexus
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexus_network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: marangone_server
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      DATABASE_URL: postgresql://nexus:nexus_dev@db:5432/nexus
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      JWT_SECRET: nexus-super-secret-jwt-key-2024
+      CLIENT_URL: http://localhost:3000
+      PORT: 3001
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nexus_network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: marangone_client
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NEXT_PUBLIC_API_URL: http://host.docker.internal:3001
+    depends_on:
+      - server
+    networks:
+      - nexus_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: marangone_redis
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexus_network
+
+volumes:
+  postgres_data:
+
+networks:
+  nexus_network:
+    name: nexus_network

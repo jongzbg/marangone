@@ -1,0 +1,264 @@
+// Prisma Schema for Nexus Social Network
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique @db.VarChar(255)
+  username    String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  displayName String?  @db.VarChar(100)
+  password    String
+  bio         String?   @db.VarChar(500)
+  location    String?   @db.VarChar(100)
+  website     String?   @db.VarChar(255)
+  avatarUrl   String?
+  bannerUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  posts        Post[]
+  likes        Like[]
+  reposts      Repost[]
+  followers    Follow[] @relation("Following")
+  following    Follow[] @relation("Follower")
+  comments     Comment[]
+  conversations ConversationParticipant[]
+  sentMessages  Message[]
+  notifications  Notification[] @relation("Notifications")
+  notificationActors Notification[] @relation("NotificationActor")
+
+  @@map("Users")
+}
+
+// Post Model
+model Post {
+  id            String    @id @default(uuid())
+  content       String
+  mediaUrls     String[]  // Array of image URLs (stored as JSON)
+  likesCount    Int       @default(0)
+  repostsCount  Int       @default(0)
+  commentsCount Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isPinned      Boolean   @default(false)
+  deletedAt     DateTime? // Soft delete — null = active, set = deleted
+
+  // Relations
+  userId    String
+  username  String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId  String?  // For threads/replies
+  parent    Post?    @relation("ThreadPosts", fields: [parentId], references: [id])
+  replies   Post[]   @relation("ThreadPosts")
+  quotedPostId  String?
+  quotedPost    Post?    @relation("QuotePosts", fields: [quotedPostId], references: [id])
+  quotedPosts   Post[]   @relation("QuotePosts")
+  likes     Like[]
+  reposts   Repost[]
+  comments  Comment[]
+  notifications Notification[]
+  // Video relation (Prisma infers from videoId)
+  videoId   String?  @unique
+  video     Video?
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([parentId])
+  @@index([quotedPostId])
+  @@index([deletedAt])
+  @@map("Post")
+}
+
+// Video Model
+model Video {
+  id            String    @id @default(uuid())
+  postId        String?   @unique // Nullable until Post is created
+  originalUrl   String?   // Temp URL ก่อน encode
+  videoUrl      String?   // URL หลัง encode เสร็จ
+  thumbnailUrl  String?
+  status        String    @default("pending") // pending | processing | ready | failed
+  error         String?
+  size          Int?      // bytes
+  duration      Int?      // seconds
+  tempId        String?   // Temp file ID สำหรับ tracking
+  resolutions    String[]  // ['240p','360p','480p','720p','1080p'] — available qualities
+  encodingProfile String  @default("incomplete") // 'incomplete' | 'complete' | 'failed'
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  post          Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("Video")
+}
+
+// Follow Model
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower   User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following  User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("Follow")
+}
+
+// Like Model
+model Like {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("Like")
+}
+
+// Repost Model
+model Repost {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("Repost")
+}
+
+// Comment Model
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  postId String
+  user   User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post   Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([postId])
+  @@map("comments")
+}
+
+// ============================================================
+// Chat / Messaging Models
+// ============================================================
+
+// Conversation — a chat thread (1:1 or group)
+model Conversation {
+  id           String    @id @default(uuid())
+  isGroup      Boolean   @default(false)
+  lastMessageAt DateTime @default(now())
+  expiresAt    DateTime  // Auto-delete after 24h of inactivity
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  // Unique key for 1:1 conversations (sorted userId pair)
+  uniqueUserPair String? @unique
+
+  @@index([lastMessageAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("Conversations")
+}
+
+// ConversationParticipant — join table with read status
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  joinedAt       DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@index([lastReadAt])
+  @@map("ConversationParticipants")
+}
+
+// Message — ephemeral chat message (24h lifecycle)
+model Message {
+  id             String    @id @default(uuid())
+  clientId      String?   // For idempotency — client-generated UUID
+  conversationId String
+  senderId      String
+  content       String?
+  mediaUrl      String?
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime  // Auto-delete after 24h
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId])
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@index([senderId])
+  @@map("Messages")
+}
+
+// ============================================================
+// Notification Model
+// ============================================================
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  REPOST
+  QUOTE
+  MESSAGE
+  FOLLOW
+  VIDEO_READY
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  type        NotificationType
+  userId      String           // Recipient
+  actorId     String           // Who triggered the notification
+  postId      String?          // Related post (if applicable)
+  messageId   String?         // Related message (if applicable)
+  conversationId String?       // Related conversation (if applicable)
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  user      User      @relation("Notifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User      @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("Notifications")
+}
+
