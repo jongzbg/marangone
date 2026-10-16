@@ -1,5 +1,14 @@
 # Nexus Social Network
 
+![MIT License](https://img.shields.io/badge/License-MIT-green.svg)
+![NestJS](https://img.shields.io/badge/NestJS-10-E0234E?logo=nestjs&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=next.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
+![Release v1.0.0](https://img.shields.io/badge/Release-v1.0.0-blue?logo=github)
+
 > **Full-stack social platform demonstrating production-grade NestJS + Next.js
 > architecture**: real-time chat via Socket.io, video upload + multi-resolution
 > encoding (BullMQ + FFmpeg.wasm), JWT authentication, Prisma schema with
@@ -9,10 +18,28 @@ Built as a portfolio showcase — clean separation between server (NestJS) and
 client (Next.js), strict TypeScript across both, infrastructure-as-code via
 Docker Compose, and zero secrets in git.
 
+> **📸 Live preview:** see [Screenshots](#-screenshots) below for a tour of the UI.
+
 ## ✨ Features
 
 - **Posts & Feed** — text/image/video posts, likes, reposts, comments, hashtags
 - **Social Graph** — follow/unfollow, follower/following counts, profile pages
+
+## 📸 Screenshots
+
+> 💡 **Note:** Drop screenshots into `docs/screenshots/` (PNG/JPG, ≤300KB each).
+> Reference them below so recruiters get a visual tour in 10 seconds.
+
+| Area | Preview |
+|---|---|
+| **Login** | `docs/screenshots/login.png` |
+| **Home Feed** | `docs/screenshots/feed.png` |
+| **Post Composer** | `docs/screenshots/compose.png` |
+| **Real-time Chat** | `docs/screenshots/chat.png` |
+| **Profile Page** | `docs/screenshots/profile.png` |
+| **Notifications** | `docs/screenshots/notifications.png` |
+
+See [`docs/screenshots/README.md`](docs/screenshots/README.md) for captured copy used next to each image.
 - **Real-time Chat** — Socket.io gateway with conversation list and unread badges
 - **Notifications** — in-app notification feed with read state
 - **Video Pipeline** — upload via Multer → BullMQ job → FFmpeg.wasm encode to multiple resolutions → CDN-ready static serve
