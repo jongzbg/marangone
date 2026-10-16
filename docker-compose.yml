@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   db:
     image: postgres:15-alpine
@@ -27,13 +25,14 @@ services:
       dockerfile: Dockerfile
     container_name: marangone_server
     restart: unless-stopped
+    env_file:
+      - ./server/.env
     ports:
       - '3001:3001'
     environment:
       DATABASE_URL: postgresql://nexus:nexus_dev@db:5432/nexus
       REDIS_HOST: redis
       REDIS_PORT: '6379'
-      JWT_SECRET: nexus-super-secret-jwt-key-2024
       CLIENT_URL: http://localhost:3000
       PORT: 3001
     depends_on:
@@ -50,6 +49,8 @@ services:
       dockerfile: Dockerfile
     container_name: marangone_client
     restart: unless-stopped
+    env_file:
+      - ./client/.env.local
     ports:
       - '3000:3000'
     environment:
