@@ -42,6 +42,7 @@ jobs:
       REDIS_PORT: 6379
       JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-test-secret-32-chars-minimum-padding' }}
       FRONTEND_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3001
 
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +51,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install server deps
         working-directory: server
@@ -62,7 +62,8 @@ jobs:
 
       - name: Run server lint
         working-directory: server
-        run: npm run lint || echo "lint script not defined — skipping"
+        run: npm run lint
+        continue-on-error: true
 
       - name: Build server
         working-directory: server
@@ -74,10 +75,9 @@ jobs:
 
       - name: Run client lint
         working-directory: client
-        run: npm run lint || echo "lint script not defined — skipping"
+        run: npm run lint
+        continue-on-error: true
 
       - name: Build client
         working-directory: client
         run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:3001
