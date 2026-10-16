@@ -26,7 +26,6 @@ async function bootstrap() {
   // CORS for API routes
   const allowedOrigins = [
     'http://localhost:3000',
-    'http://192.168.65.254:3000',
     process.env.FRONTEND_URL,
   ].filter(Boolean);
   app.enableCors({
